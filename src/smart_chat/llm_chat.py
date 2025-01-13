@@ -3,14 +3,12 @@ from typing import Any, Dict
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_ollama import ChatOllama
 
-from smart_chat.llm_tools import tools
-
 
 class SmartChatWrapper:
     """Class to itnitialize and run LLM chat.
     """
 
-    def __init__(self, model_name: str, base_url: str, temperature: float = None):
+    def __init__(self, model_name: str, base_url: str, temperature: float = None, tools: list = []):
         """Initialize the class.
         """
         self.model_name = model_name
@@ -25,21 +23,36 @@ class SmartChatWrapper:
         )
 
         # Bind tools
-        self.llm = self.llm.bind_tools(tools)
+        if tools:
+            self.llm = self.llm.bind_tools(tools)
 
-        # Add system message to steer response
-        prompt = ChatPromptTemplate.from_messages(
-            [
-                (
-                    "system",
-                    "Analyse the given prompt and call a tool only if asked, if not try to give a response."
-                ),
-                (
-                    "human",
-                    "{input}"
-                )
-            ]
-        )
+            # Add system message to steer response
+            prompt = ChatPromptTemplate.from_messages(
+                [
+                    (
+                        "system",
+                        "Analyse the given prompt and call a tool only if asked, if not try to give a response."
+                    ),
+                    (
+                        "human",
+                        "{input}"
+                    )
+                ]
+            )
+        else:
+            # Add system message to steer response
+            prompt = ChatPromptTemplate.from_messages(
+                [
+                    (
+                        "system",
+                        "You are a helpful assistant. Try to give a response."
+                    ),
+                    (
+                        "human",
+                        "{input}"
+                    )
+                ]
+            )
 
         # Chain model with prompt
         self.chain = prompt | self.llm

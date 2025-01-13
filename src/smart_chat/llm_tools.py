@@ -21,7 +21,3 @@ def multiply(a: int, b: int) -> int:
     """
     logger.info('In multiply...')
     return a * b
-
-
-# Registered tools
-tools = [multiply]
