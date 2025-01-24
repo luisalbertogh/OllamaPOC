@@ -1,7 +1,15 @@
+import logging
 from typing import Any, Dict
 
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_ollama import ChatOllama
+
+from smart_chat.llm_tools import get_selected_tool
+
+# Configure logging
+logging.basicConfig()
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
 
 
 class SmartChatWrapper:
@@ -26,22 +34,28 @@ class SmartChatWrapper:
         if tools:
             self.llm = self.llm.bind_tools(tools)
 
+            # Initial prompt messages
+            self.messages = [
+                (
+                    "system",
+                    "Analyse the given prompt and call a tool only if asked, if not try to give a response."
+                ),
+                (
+                    "human",
+                    "{input}"
+                ),
+                (
+                    "placeholder",
+                    "{tool_msgs}"
+                )
+            ]
+
             # Add system message to steer response
-            prompt = ChatPromptTemplate.from_messages(
-                [
-                    (
-                        "system",
-                        "Analyse the given prompt and call a tool only if asked, if not try to give a response."
-                    ),
-                    (
-                        "human",
-                        "{input}"
-                    )
-                ]
-            )
+            self.prompt = ChatPromptTemplate.from_messages(self.messages)
+        # No tools
         else:
             # Add system message to steer response
-            prompt = ChatPromptTemplate.from_messages(
+            self.prompt = ChatPromptTemplate.from_messages(
                 [
                     (
                         "system",
@@ -55,7 +69,7 @@ class SmartChatWrapper:
             )
 
         # Chain model with prompt
-        self.chain = prompt | self.llm
+        self.chain = self.prompt | self.llm
 
     @property
     def params(self) -> Dict[str, Any]:
@@ -86,6 +100,26 @@ class SmartChatWrapper:
         ai_msg = self.chain.invoke(message)
         return ai_msg.content
 
+    def tool_invoke(self, message: str):
+        """Invoke the chat to run tools.
+
+        Args:
+            message (str): User messages.
+        """
+        tool_msgs = []
+        ai_msg = self.chain.invoke({"input": message})
+        tool_msgs.append(ai_msg)
+
+        # Iterate tool calls
+        for tool_call in ai_msg.tool_calls:
+            selected_tool = get_selected_tool(tool_call)
+            tool_msg = selected_tool.invoke(tool_call)
+            tool_msgs.append(tool_msg)
+
+        # Invoke model to get interpreted tool response
+        logger.debug(tool_msgs)
+        print(self.chain.invoke({"input": message, "tool_msgs": tool_msgs}).content, end="", flush=True)
+
     def stream(self, message: str):
         """Invoke the chat using streams.
 
@@ -94,9 +128,4 @@ class SmartChatWrapper:
         """
         # Stream messages
         for chunk in self.chain.stream({"input": message}):
-            # This means a tool has been invoked
-            if chunk.tool_call_chunks:
-                print(f"{chunk.tool_call_chunks}", end="", flush=True)
-            # This is the standard response
-            else:
-                print(f"{chunk.content}", end="", flush=True)
+            print(f"{chunk.content}", end="", flush=True)

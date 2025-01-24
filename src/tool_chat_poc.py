@@ -5,7 +5,7 @@ from langchain_core.caches import InMemoryCache
 from langchain_core.globals import set_llm_cache
 
 from smart_chat.llm_chat import SmartChatWrapper
-from smart_chat.llm_tools import multiply
+from smart_chat.llm_tools import multiply, add
 
 # Configure logging
 logging.basicConfig()
@@ -23,8 +23,8 @@ def invoke(message: str):
         message (str): Input message.
     """
     # Invoke the chat
-    print("ChatBot >> ", end=" ")
-    smart_chat.stream(message)
+    print("ChatBot >> ", end="")
+    smart_chat.tool_invoke(message)
     print("")
 
 
@@ -35,7 +35,7 @@ def init_chat():
 
     # Init chat wrapper for tool calling with predefined tools
     logger.info("Starting smart chat...")
-    smart_chat = SmartChatWrapper(model_name="llama3.1", base_url="http://localhost:11434", tools=[multiply])
+    smart_chat = SmartChatWrapper(model_name="llama3.1", base_url="http://localhost:11434", tools=[multiply, add])
 
     # Use in-memory cache up to 100 items
     set_llm_cache(InMemoryCache(maxsize=100))
