@@ -1,6 +1,7 @@
 import logging
 from typing import Any, Dict
 
+from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_ollama import ChatOllama
 
@@ -34,12 +35,32 @@ class SmartChatWrapper:
         if tools:
             self.llm = self.llm.bind_tools(tools)
 
+            # Few-shot prompt examples
+            self.examples = [
+                HumanMessage(
+                    "Learn from ./files/learn.txt and analyze the content.", name="example_user"
+                ),
+                AIMessage(
+                    "",
+                    name="example_assistant",
+                    tool_calls=[
+                        {"name": "learn", "args": {"file_path": "./files/learn.txt"}, "id": "1"}
+                    ],
+                ),
+                ToolMessage("The bird is called Piticli.", tool_call_id="1"),
+                AIMessage(
+                    "The name of the bird is Piticli.",
+                    name="example_assistant"
+                )
+            ]
+
             # Initial prompt messages
             self.messages = [
                 (
                     "system",
-                    "Analyse the given prompt and call a tool only if asked, if not try to give a response."
+                    "Analyse the given prompt and call a tool if possible. Try to give a response in any case."
                 ),
+                *self.examples,
                 (
                     "human",
                     "{input}"
